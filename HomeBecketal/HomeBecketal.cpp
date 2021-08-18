@@ -429,13 +429,39 @@ int eveningLight(int aiStateWifi)
 	return aiStateWifi;
 }
 
-
 // RandomModus durchführen
 void randomDigitalWrite(int laiOutRandom[], int anz)
 {
 	int i = 1;
 	int ii = 0;
 	int zl = 0;
+
+	time_t theTime = time(NULL);
+	struct tm *aTime = localtime(&theTime);
+	int year = aTime->tm_year + 1900;
+	int month = aTime->tm_mon + 1;
+	int day = aTime->tm_mday;
+
+	// Sonnenuntergang
+// 53.18619,8.60846 zu Hause
+	float localTs = calculateSunset(year, month, day, 53.18619, 8.60846, 1, 0);
+	double sunset_hr = fmod(24 + localTs, 24.0);
+	int ss_hr = (int)sunset_hr;
+	// int ss_min = (int) sunset_min;
+
+	// Sonnenaufgang
+	// 53.18619,8.60846 zu Hause
+	float localTr = calculateSunrise(year, month, day, 53.18619, 8.60846, 1, 0);
+	double sunrise_hr = fmod(24 + localTr, 24.0);
+	int sr_hr = (int)sunrise_hr;
+	// int sr_min = (int) sunrise_min;
+
+	//printf("%u\n",year);
+	//printf("%u\n",month);
+	//printf("%u\n",day);
+	//printf("%u:%u\n",ss_hr,ss_min);    
+	//printf("%u:%u\n",sr_hr,sr_min);    
+	//printf("%u:%u\n",hour,min);  
 
 	showQuit(laiOutRandom, 4);
 
@@ -446,10 +472,10 @@ void randomDigitalWrite(int laiOutRandom[], int anz)
 
 		time_t theTime = time(NULL);
 		struct tm *aTime = localtime(&theTime);
-		int hour = aTime->tm_hour;
+		// int hour=aTime->tm_hour;
 		int min = aTime->tm_min;
 
-		if ((hour >= 17 && hour <= 23) || (hour > 6 && hour < 8))
+		if ((ss_hr >= 17 && ss_hr <= 23) || (sr_hr > 6 && sr_hr < 9))
 		{
 			if (min > 1 && min < 13)
 			{
