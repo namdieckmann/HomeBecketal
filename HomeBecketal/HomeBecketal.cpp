@@ -1,6 +1,5 @@
 // WiringPi-Api einbinden
 #include <wiringPi.h>
-
 // C-Standardbibliothek einbinden
 #include <stdio.h>
 #include <string.h>
@@ -9,6 +8,8 @@
 // libcurl HTTP Aufrufe
 #include <arm-linux-gnueabihf/curl/curl.h>
 #include <arm-linux-gnueabihf/curl/easy.h>
+// Mosquitto Aufrufe
+#include <mosquitto.h>
 // Sundown
 #include <math.h>
 #define PI 3.1415926
@@ -26,11 +27,13 @@ void randomDigitalWrite();	// Random-Modus ausführen Extra Schleife
 void showQuit();			// Quittierung für RandomModus
 int  getHome(int);
 int  WifiSwitch(int, int);   // Schalten eines Wifi-Verbrauchers ab Nr. 100
-int  WifiSwitchMosquitto(int, int); // Schalten eines Wifi Verbrauchers mit z.B. mosquitto_pub -h localhost -t switch001/off -m 1
 int  espWakeUp(int);
 int  eveningLight(int);		// Abendlicht Weihnachten
 float calculateSunset(int, int, int, float, float, int, int);   // Sonnenuntergang berechnen
 float calculateSunrise(int, int, int, float, float, int, int);   // Sonnenaufgang berechnen
+void mosquitto_log_callback_set();
+void on_log();
+void on_message();			// Schaltbefehle von Mosquitto auswerten	
 
 int main() {
 	int i = 1;			// Hinein in die Hauptschleife
@@ -42,13 +45,13 @@ int main() {
 	int liStateWifi = 0;	// Abendlicht Weihnachten
 
 	// Array Zuordnungen
-	int laiOut[4] = { 24,7,0,2 };
+	int laiOut[4] = { 24,21,0,2 };
 	int laiOutOnNextOn[4] = { 0,101,24,24 }; 		// Ausgang Ein, nächster Ausgang Ein (999 ist nix))
 	int laiOutOnNextOff[4] = { 999,999,999,999 };	// Ausgang Ein, nächster Ausgang Aus (ab 100 ist Wifi)
 	int laiOutOffNextOn[4] = { 999,24,999,24 };		// Ausgang Aus, nächster Ausgang Ein
 	int laiOutOffNextOff[4] = { 0,999,24,999 }; 		// Ausgang Aus, nächster Ausgang Aus
 	int laiOutOnAndOff[4] = { 999,101,999,999 };	    // Ausgang Ein, sofort anderen Ausgang auf aus (z.B. Wifilampe Wohnz.)
-	int laiOutRandom[4] = { 24,7,0,2 };				// Ausgang für Random
+	int laiOutRandom[4] = { 24,21,0,2 };				// Ausgang für Random
 	int laiOutState[4] = { AUS,AUS,AUS,AUS };
 	int laiOutStateNew[4] = { EIN,EIN,EIN,EIN };
 	// hier nur die Hardware (nur 4)
@@ -71,7 +74,7 @@ int main() {
 	// Definition der Ausgänge
 	// Wichtig: Hier wird das WiringPi Layout verwendet
 	pinMode(24, OUTPUT);	// Flur unten  
-	pinMode(7, OUTPUT);  	// Wohnzimmer
+	pinMode(21, OUTPUT);  	// Wohnzimmer
 	pinMode(0, OUTPUT);		// Flur oben  
 	pinMode(2, OUTPUT);  	// Küche
 	pinMode(3, OUTPUT);   	// Umschaltung Automatik Hand
@@ -81,14 +84,14 @@ int main() {
 	pinMode(28, INPUT);    	// Flur oben
 	pinMode(6, INPUT);     	// Küche
 	// Initialisierung Ausgänge Test
-	// digitalWrite(24, EIN);  // Flur unten
-	// digitalWrite(7, EIN);	// Wohnzimmer
-	// digitalWrite(0, EIN);	// Flur oben
-	// digitalWrite(2, EIN);	// Küche
-	// digitalWrite(3, EIN);	// Automatik // Außer Betrieb Ulf!
+	/*digitalWrite(24, EIN);  // Flur unten
+	digitalWrite(21, EIN);	// Wohnzimmer
+	digitalWrite(0, EIN);	// Flur oben
+	digitalWrite(2, EIN);	// Küche
+	digitalWrite(3, EIN);*/	// Automatik // nur für Test, Außer Betrieb Ulf!
 	// Initialisierung Ausgänge
 	digitalWrite(24, AUS);  // Flur unten
-	digitalWrite(7, AUS);	// Wohnzimmer
+	digitalWrite(21, AUS);	// Wohnzimmer Relais defekt, von 7 nach 21 getauscht
 	digitalWrite(0, AUS);	// Flur oben
 	digitalWrite(2, AUS);	// Küche
 	digitalWrite(3, EIN);	// Automatik EIN
@@ -99,9 +102,32 @@ int main() {
 	digitalWrite(29, 0);
 	digitalWrite(6, 0);
 	delay(1000);
-	printf("Hauptschleife läuft\n");
+
+	// Mosquitto Init
+	char *host = "localhost";
+	int port = 1883;
+	int keepalive = 60;
+	bool clean_session = true;
+	struct mosquitto *mosq = NULL;
+
+	mosquitto_lib_init();
+	mosq = mosquitto_new(NULL, clean_session, NULL);
+	if (!mosq) {
+		printf("Error: Out of memory.\n");
+		return 1;
+	}
+	/* mosquitto_log_callback_set(mosq, my_log_callback); */
+	mosquitto_message_callback_set(mosq, on_message);
+
+	if (mosquitto_connect(mosq, host, port, keepalive)) {
+		printf("Unable to connect.\n");
+		return 1;
+	}
+	// # Horcht auf alle Topics
+	mosquitto_subscribe(mosq, NULL, "#", 0);
 
 	// i=0;			// Außer Betrieb Ulf
+	printf("Hauptschleife        läuft\n");
 	// Hauptschleife
 	while (i == 1)
 	{
@@ -116,8 +142,11 @@ int main() {
 
 		if (zlWkp == 60)
 		{
-			zlWkp = espWakeUp(zlWkp);
+			// zlWkp = espWakeUp(zlWkp);	
 		}
+
+		// Mosquitto Loop Mqtt
+		// mosquitto_loop(mosq, -1, 1);
 
 		while (ii <= 3) 		// Schleife durch alle Eingänge (nur Digitaleingänge)
 		{
@@ -302,6 +331,8 @@ int main() {
 
 		delay(100);
 	}
+	mosquitto_destroy(mosq);
+	mosquitto_lib_cleanup();
 }
 
 // Die Zähler für die Zeitsteuerung bearbeiten
@@ -565,12 +596,12 @@ int WifiSwitch(int aiSchalternummer, int aiState)
 		{
 			if (aiState == 1)
 			{
-				printf("Ausgang setzen %d \n", aiSchalternummer);
+				// printf("Ausgang setzen %d \n",aiSchalternummer);		
 				curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.178.43/ein");
 			}
 			if (aiState == 0)
 			{
-				printf("Ausgang setzen %d \n", aiSchalternummer);
+				// printf("Ausgang setzen %d \n",aiSchalternummer);		
 				curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.178.43/aus");
 			}
 		}
@@ -578,12 +609,12 @@ int WifiSwitch(int aiSchalternummer, int aiState)
 		{
 			if (aiState == 1)
 			{
-				printf("Ausgang setzen %d \n", aiSchalternummer);
+				// printf("Ausgang setzen %d \n",aiSchalternummer);		
 				curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.178.46/ein");
 			}
 			if (aiState == 0)
 			{
-				printf("Ausgang setzen %d \n", aiSchalternummer);
+				// printf("Ausgang setzen %d \n",aiSchalternummer);		
 				curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.178.46/aus");
 			}
 		}
@@ -601,13 +632,6 @@ int WifiSwitch(int aiSchalternummer, int aiState)
 
 	/* always cleanup */
 	curl_easy_cleanup(curl);
-
-	return(aiState);
-}
-
-// Wifi-Schalter betätigen mit Systemaufruf mosquitto_pub
-int WifiSwitchMosquitto(int aiSchalternummer, int aiState)
-{
 
 	return(aiState);
 }
@@ -668,6 +692,8 @@ float calculateSunset(int year, int month, int day, float lat, float lng, int lo
 	return UT + localOffset + daylightSavings;
 }
 
+
+// Sonnenauf -untergan berechnen
 float calculateSunrise(int year, int month, int day, float lat, float lng, int localOffset, int daylightSavings) {
 	//1. first calculate the day of the year
 	float N1 = floor(275 * month / 9);
@@ -721,4 +747,79 @@ float calculateSunrise(int year, int month, int day, float lat, float lng, int l
 
 	//10. convert UT value to local time zone of latitude/longitude
 	return UT + localOffset + daylightSavings;
+}
+
+// Mosquitto Nachrichten auswerten
+void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message)
+{
+	/*digitalWrite(24, EIN);  // Flur unten
+	  digitalWrite(21, EIN);	// Wohnzimmer
+	  digitalWrite(0, EIN);	// Flur oben
+	  digitalWrite(2, EIN);	// Küche
+	  digitalWrite(3, EIN);*/	// Automatik // nur für Test, Außer Betrieb Ulf!
+
+	if (message->payloadlen) {
+		// printf("Mosquitto: %*s\n",message->payloadlen, (char*) message->payload);			
+
+		int len = message->payloadlen;
+		char *msg = (char*)message->payload;
+		char smsg[len];
+		sprintf(smsg, "%s", msg);
+
+		printf("Message %s\n", smsg);
+
+		// Flur Unten Ein
+		if (strcmp(smsg, "24/Ein/FlurUnten") == 0)
+		{
+			digitalWrite(24, EIN);	// Flur oben Ein
+		}
+
+		// Flur Unten Aus
+		if (strcmp(smsg, "24/Aus/FlurUnten") == 0)
+		{
+			digitalWrite(24, AUS);	// Flur oben Aus
+		}
+
+		// Wohnzimmer Ein
+		if (strcmp(smsg, "21/Ein/Wohnzimmer") == 0)
+		{
+			digitalWrite(21, EIN);	// Wohnzimmer Ein
+		}
+
+		// Wohnzimmer Aus
+		if (strcmp(smsg, "21/Aus/Wohnzimmer") == 0)
+		{
+			digitalWrite(21, AUS);	// Wohnzimmer Aus
+		}
+
+		// Flur Oben Ein
+		if (strcmp(smsg, "0/Ein/FlurOben") == 0)
+		{
+			digitalWrite(0, EIN);	// Flur oben Ein
+		}
+
+		// Flur Oben Aus
+		if (strcmp(smsg, "0/Aus/FlurOben") == 0)
+		{
+			digitalWrite(0, AUS);	// Flur oben Aus
+		}
+
+		// Küche Ein
+		if (strcmp(smsg, "2/Ein/Kueche") == 0)
+		{
+			digitalWrite(2, EIN);	// Küche Ein
+		}
+
+		// Küche Aus
+		if (strcmp(smsg, "2/Aus/Kueche") == 0)
+		{
+			digitalWrite(2, AUS);	// Küche Aus
+		}
+
+		// printf("%.*s\n", message->payloadlen, (char*) message->payload);
+	}
+	else {
+		printf("%s (null)\n", message->topic);
+	}
+	fflush(stdout);
 }
