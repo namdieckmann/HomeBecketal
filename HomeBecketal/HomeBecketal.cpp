@@ -101,7 +101,7 @@ int main() {
 	digitalWrite(28, 0);
 	digitalWrite(29, 0);
 	digitalWrite(6, 0);
-	delay(1000);
+	// delay(100);  
 
 	// Mosquitto Init
 	char *host = "localhost";
@@ -133,20 +133,20 @@ int main() {
 	{
 		ii = 0;
 
-		// Weihnachtslicht
+		// Fensterlicht Sonoff
 		liStateWifi = eveningLight(laiStateWifi[2]);
 		laiStateWifi[2] = liStateWifi;
 
 		// ESPs wach halten
 		zlWkp++;
 
-		if (zlWkp == 60)
+		if (zlWkp == 600)
 		{
-			// zlWkp = espWakeUp(zlWkp);	
+			zlWkp = espWakeUp(zlWkp);
 		}
 
-		// Mosquitto Loop Mqtt
-		// mosquitto_loop(mosq, -1, 1);
+		// Mosquitto Loop Mqtt (Bei -1 wird eine Sekunde gewartet, bei 0 rennt es durch
+		mosquitto_loop(mosq, 0, 1);
 
 		while (ii <= 3) 		// Schleife durch alle Eingänge (nur Digitaleingänge)
 		{
@@ -329,7 +329,7 @@ int main() {
 		countTimerUp(laiZlOnNextOn, 4, laiTimerOnNextOn, 4, laiOutOnNextOn, 4); // 2te Schaltung
 		countTimerUp(laiZlOffNextOn, 4, laiTimerOffNextOn, 4, laiOutOffNextOn, 4); //2te Schaltung						
 
-		delay(100);
+		delay(70);
 	}
 	mosquitto_destroy(mosq);
 	mosquitto_lib_cleanup();
@@ -764,8 +764,8 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 		int len = message->payloadlen;
 		char *msg = (char*)message->payload;
 		char smsg[len];
-		sprintf(smsg, "%s", msg);
 
+		sprintf(smsg, "%s", msg);
 		printf("Message %s\n", smsg);
 
 		// Flur Unten Ein
