@@ -21,6 +21,17 @@
 #define WIFIAUS 0
 #define GETEIN 1
 #define GETAUS 0
+// Eingänge ab 7.1.23
+#define INFLURUNTEN 18
+#define INWOHNZIMMER 23
+#define INFLUROBEN 24
+#define INKUECHE 25
+// Ausgänge ab 7.1.23
+#define OUTFLURUNTEN 21
+#define OUTWOHNZIMMER 7
+#define OUTFLUROBEN 0
+#define OUTKUECHE 2
+#define AUTOMATIK 3
 
 void countTimerUp();		// Timer für Flurlicht
 void randomDigitalWrite();	// Random-Modus ausführen Extra Schleife
@@ -28,7 +39,7 @@ void showQuit();			// Quittierung für RandomModus
 int  getHome(int);
 int  WifiSwitch(int, int);   // Schalten eines Wifi-Verbrauchers ab Nr. 100
 int  espWakeUp(int);
-int  eveningLight(int);		// Abendlicht Weihnachten
+int  eveningLight(int);		// Abendlicht Küche
 float calculateSunset(int, int, int, float, float, int, int);   // Sonnenuntergang berechnen
 float calculateSunrise(int, int, int, float, float, int, int);   // Sonnenaufgang berechnen
 void mosquitto_log_callback_set();
@@ -72,35 +83,39 @@ int main() {
 		return 1;
 
 	// Definition der Ausgänge
-	// Wichtig: Hier wird das WiringPi Layout verwendet
-	pinMode(24, OUTPUT);	// Flur unten  
-	pinMode(21, OUTPUT);  	// Wohnzimmer
-	pinMode(0, OUTPUT);		// Flur oben  
-	pinMode(2, OUTPUT);  	// Küche
-	pinMode(3, OUTPUT);   	// Umschaltung Automatik Hand
+	// Wichtig: Hier wird das WiringPi Layout verwendet, siehe OneNote, GPIOs s. Comments
+	pinMode(24, OUTPUT);	// 21 = GPIO 5 Flur unten
+	pinMode(7, OUTPUT);  	// 		GPIO 4  Wohnzimmer
+	pinMode(0, OUTPUT);		// 		GPIO 17 Flur oben  
+	pinMode(2, OUTPUT);  	// 		GPIO 27 Küche
+	pinMode(3, OUTPUT);   	// 		GPIO 22 Umschaltung Automatik Hand
 	// Definition der Eingänge
-	pinMode(27, INPUT);    	// Flur unten
-	pinMode(29, INPUT);    	// Wohnzimmer
-	pinMode(28, INPUT);    	// Flur oben
-	pinMode(6, INPUT);     	// Küche
+	pinMode(27, INPUT);    	// 18 = GPIO 1 Flur unten
+	pinMode(29, INPUT);    	// 23 = GPIO 4 Wohnzimmer
+	pinMode(28, INPUT);    	// 24 = GPIO 5 Flur oben
+	pinMode(6, INPUT);    	// 25 = GPIO 6 Küche
+
 	// Initialisierung Ausgänge Test
-	/*digitalWrite(24, EIN);  // Flur unten
-	digitalWrite(21, EIN);	// Wohnzimmer
+/*	digitalWrite(24, EIN);  // Flur unten
+	digitalWrite(7, EIN);	// Wohnzimmer
 	digitalWrite(0, EIN);	// Flur oben
 	digitalWrite(2, EIN);	// Küche
-	digitalWrite(3, EIN);*/	// Automatik // nur für Test, Außer Betrieb Ulf!
+	digitalWrite(3, EIN);	// Automatik // nur für Test, Außer Betrieb Ulf!
+	*/
+
 	// Initialisierung Ausgänge
 	digitalWrite(24, AUS);  // Flur unten
-	digitalWrite(21, AUS);	// Wohnzimmer Relais defekt, von 7 nach 21 getauscht
+	digitalWrite(7, AUS);	// Wohnzimmer
 	digitalWrite(0, AUS);	// Flur oben
 	digitalWrite(2, AUS);	// Küche
-	digitalWrite(3, EIN);	// Automatik EIN
+	digitalWrite(3, AUS);	// Automatik
 
 	// Initialisierung der Eingänge
 	digitalWrite(27, 0);
 	digitalWrite(28, 0);
 	digitalWrite(29, 0);
 	digitalWrite(6, 0);
+	digitalWrite(3, 0);	// Automatik ein, AUS FÜR TEST
 	// delay(100);  
 
 	// Mosquitto Init
@@ -126,7 +141,7 @@ int main() {
 	// # Horcht auf alle Topics
 	mosquitto_subscribe(mosq, NULL, "#", 0);
 
-	// i=0;			// Außer Betrieb Ulf
+	i = 1;			// Außer Betrieb Test
 	printf("Hauptschleife        läuft\n");
 	// Hauptschleife
 	while (i == 1)
@@ -454,8 +469,6 @@ int eveningLight(int aiStateWifi)
 			}
 		}
 	}
-
-
 
 	return aiStateWifi;
 }
