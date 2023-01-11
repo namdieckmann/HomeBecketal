@@ -22,13 +22,13 @@
 #define GETEIN 1
 #define GETAUS 0
 // Eingänge ab 7.1.23
-#define INFLURUNTEN 18
-#define INWOHNZIMMER 23
-#define INFLUROBEN 24
+#define INFLURUNTEN 21
+#define INWOHNZIMMER 22
+#define INFLUROBEN 23
 #define INKUECHE 25
 #define INAUTOMATIK 1
 // Ausgänge ab 7.1.23
-#define OUTFLURUNTEN 21
+#define OUTFLURUNTEN 4
 #define OUTWOHNZIMMER 7
 #define OUTFLUROBEN 0
 #define OUTKUECHE 2
@@ -48,22 +48,22 @@ void on_log();
 void on_message();			// Schaltbefehle von Mosquitto auswerten	
 
 int main() {
-	int i = 1;			// Hinein in die Hauptschleife
+	int i = 1;				// Hinein in die Hauptschleife
 	int ii = 0;
 	int j = 0;
 	int zlWkp = 0;			// Zähler WakeUp
 	int liInState = 0;
-	int liFlagFone = 0;		// Bekanntes Handy ermittelt
 	int liStateWifi = 0;	// Abendlicht Weihnachten
+	int iToggle = 0;
 
 	// Array Zuordnungen
 	int laiOut[4] = { OUTFLURUNTEN,OUTWOHNZIMMER,OUTFLUROBEN,OUTKUECHE };
-	int laiOutOnNextOn[4] = { OUTFLUROBEN,101,OUTFLURUNTEN,OUTFLURUNTEN }; 		// Ausgang Ein, nächster Ausgang Ein (999 ist nix))
-	int laiOutOnNextOff[4] = { 999,999,999,999 };	// Ausgang Ein, nächster Ausgang Aus (ab 100 ist Wifi)
-	int laiOutOffNextOn[4] = { 999,OUTFLURUNTEN,999,OUTFLURUNTEN };		// Ausgang Aus, nächster Ausgang Ein
-	int laiOutOffNextOff[4] = { OUTFLUROBEN,999,OUTFLURUNTEN,999 }; 		// Ausgang Aus, nächster Ausgang Aus
-	int laiOutOnAndOff[4] = { 999,101,999,999 };	    // Ausgang Ein, sofort anderen Ausgang auf aus (z.B. Wifilampe Wohnz.)
-	int laiOutRandom[4] = { OUTFLURUNTEN,OUTWOHNZIMMER,OUTFLUROBEN,OUTKUECHE };				// Ausgang für Random
+	int laiOutOnNextOn[4] = { OUTFLUROBEN,101,OUTFLURUNTEN,OUTFLURUNTEN }; 	// Ausgang Ein, nächster Ausgang Ein (999 ist nix))
+	int laiOutOnNextOff[4] = { 999,999,999,999 };							// Ausgang Ein, nächster Ausgang Aus (ab 100 ist Wifi)
+	int laiOutOffNextOn[4] = { 999,OUTFLURUNTEN,999,OUTFLURUNTEN };			// Ausgang Aus, nächster Ausgang Ein
+	int laiOutOffNextOff[4] = { OUTFLUROBEN,999,OUTFLURUNTEN,999 }; 			// Ausgang Aus, nächster Ausgang Aus
+	int laiOutOnAndOff[4] = { 999,101,999,999 };	    						// Ausgang Ein, sofort anderen Ausgang auf aus (z.B. Wifilampe Wohnz.)
+	// int laiOutRandom [4] = {OUTFLURUNTEN,OUTWOHNZIMMER,OUTFLUROBEN,OUTKUECHE};				// Todo Ausgang für Random Todo Ulf außer Betrieb
 	int laiOutState[4] = { AUS,AUS,AUS,AUS };
 	int laiOutStateNew[4] = { EIN,EIN,EIN,EIN };
 	// hier nur die Hardware (nur 4)
@@ -85,16 +85,16 @@ int main() {
 
 	// Definition der Ausgänge
 	// Wichtig: Hier wird das WiringPi Layout verwendet, siehe OneNote, GPIOs s. Comments
-	pinMode(OUTFLURUNTEN, OUTPUT);		// 21 = GPIO 5 Flur unten
+	pinMode(OUTFLURUNTEN, OUTPUT);		//  4 = GPIO 23 Flur unten
 	pinMode(OUTWOHNZIMMER, OUTPUT);  	// 	7 =	GPIO 4  Wohnzimmer
 	pinMode(OUTFLUROBEN, OUTPUT);		// 	0 =	GPIO 17 Flur oben  
 	pinMode(OUTKUECHE, OUTPUT);  		// 	2 =	GPIO 27 Küche
 	pinMode(OUTAUTOMATIK, OUTPUT);   	// 	3 =	GPIO 22 Umschaltung Automatik Hand
 	// Definition der Eingänge
-	pinMode(INFLURUNTEN, INPUT);    	// 18 = GPIO 1 Flur unten
-	pinMode(INWOHNZIMMER, INPUT);    	// 23 = GPIO 4 Wohnzimmer
-	pinMode(INFLUROBEN, INPUT);    		// 24 = GPIO 5 Flur oben
-	pinMode(INKUECHE, INPUT);    		// 25 = GPIO 6 Küche
+	pinMode(INFLURUNTEN, INPUT);    	// 21 = GPIO 5  Flur unten
+	pinMode(INWOHNZIMMER, INPUT);    	// 22 = GPIO 6  Wohnzimmer
+	pinMode(INFLUROBEN, INPUT);    		// 23 = GPIO 13 Flur oben
+	pinMode(INKUECHE, INPUT);    		// 25 = GPIO 26 Küche
 	pinMode(INAUTOMATIK, INPUT);		//  1 = GPIO 18 Automatik
 
 	// Initialisierung Ausgänge Test
@@ -110,14 +110,14 @@ int main() {
 	digitalWrite(OUTWOHNZIMMER, AUS);	// Wohnzimmer
 	digitalWrite(OUTFLUROBEN, AUS);		// Flur oben
 	digitalWrite(OUTKUECHE, AUS);		// Küche
-	digitalWrite(OUTAUTOMATIK, AUS);	// Automatik
+	digitalWrite(OUTAUTOMATIK, EIN);	// Automatik
 
 	// Initialisierung der Eingänge
-	digitalWrite(INFLURUNTEN, 0);
-	digitalWrite(INWOHNZIMMER, 0);
-	digitalWrite(INFLUROBEN, 0);
-	digitalWrite(INKUECHE, 0);
-	digitalWrite(INAUTOMATIK, 0);		// Automatik
+	digitalWrite(INFLURUNTEN, AUS);
+	digitalWrite(INWOHNZIMMER, AUS);
+	digitalWrite(INFLUROBEN, AUS);
+	digitalWrite(INKUECHE, AUS);
+	digitalWrite(INAUTOMATIK, AUS);		// Automatik nicht verwendet
 	// delay(100);  
 
 	// Mosquitto Init
@@ -143,13 +143,13 @@ int main() {
 	// # Horcht auf alle Topics
 	mosquitto_subscribe(mosq, NULL, "#", 0);
 
+
 	i = 1;			// Außer Betrieb Test
 	printf("Hauptschleife        läuft\n");
+
 	// Hauptschleife
 	while (i == 1)
 	{
-		ii = 0;
-
 		// Fensterlicht Sonoff
 		liStateWifi = eveningLight(laiStateWifi[2]);
 		laiStateWifi[2] = liStateWifi;
@@ -165,13 +165,30 @@ int main() {
 		// Mosquitto Loop Mqtt (Bei -1 wird eine Sekunde gewartet, bei 0 rennt es durch
 		mosquitto_loop(mosq, 0, 1);
 
+		// Automatikbetrieb ein, in die TasterSchleife (ii) hinein
+		if (digitalRead(OUTAUTOMATIK) == EIN && (iToggle == 0))
+		{
+			// Zähler für Schleife durch alle Eingänge
+			printf("Automatik ist Ein\n");
+			ii = 0;
+			iToggle = 1;
+		}
+		if (digitalRead(OUTAUTOMATIK) == AUS && (iToggle == 1))
+		{
+			// Automatik aus, nicht in die Schleife
+			// Kann per Mqtt außer Betrieb gesetzt werden
+			printf("Automatik ist Aus\n");
+			ii = 99;
+			iToggle = 0;
+		}
+
 		while (ii <= 3) 		// Schleife durch alle Eingänge (nur Digitaleingänge)
 		{
 			// Staus der Eingänge lesen
 			liInState = digitalRead(laiIn[ii]);
 
-			// Wenn ein Taster gedrückt ist oder jemand nach Hause kommt
-			if (liInState == GETEIN || liFlagFone == 1)
+			// Wenn ein Taster gedrückt ist 
+			if (liInState == GETEIN)
 			{
 				// Normale Schaltung
 				if (laiZl1[ii] == 0)
@@ -181,9 +198,10 @@ int main() {
 					laiZl2[ii]++;
 					laiZl3[ii]++;
 
+					printf("Eingang Nr %d  betätigt\n", laiIn[ii]);
+
 					// Zustand des Ausgangs lesen
 					laiOutState[ii] = digitalRead(laiOut[ii]);
-					// printf("Zustand %d \n",laiOutState[ii]);
 
 					// Neuer Zustand soll werden : AUS
 					if (laiOutState[ii] == EIN)
@@ -211,6 +229,7 @@ int main() {
 							laiZl10[ii]++;
 						}
 					}
+
 					// printf("Zustand soll %d \n",laiOutStateNew[ii]);					
 					if (laiOutState[ii] != laiOutStateNew[ii])
 					{
@@ -292,7 +311,6 @@ int main() {
 						laiZl10[ii] = 0;
 					}
 				}
-
 				// Zähler 3te Schaltung
 				if (laiZl2[ii] > 0)
 				{
@@ -319,8 +337,10 @@ int main() {
 						laiZl1[ii] = 0;
 						laiZl2[ii] = 0;
 						laiZl3[ii] = 0;
+
 						// printf("Zähler 4te Schaltung Random start %d \n",laiZl3[ii]);						
-						randomDigitalWrite(laiOutRandom, 4);
+						// randomDigitalWrite(laiOutRandom,4);		// Todo Ulf außer Betrieb
+
 						// printf("Zähler 4te Schaltung Random beendet %d \n",laiZl3[ii]);												
 						// Timer wieder löschen für Zeit Treppenhaus
 						laiZl10[ii] = 0;
@@ -489,7 +509,7 @@ void randomDigitalWrite(int laiOutRandom[], int anz)
 	int day = aTime->tm_mday;
 
 	// Sonnenuntergang
-// 53.18619,8.60846 zu Hause
+	// 53.18619,8.60846 zu Hause
 	float localTs = calculateSunset(year, month, day, 53.18619, 8.60846, 1, 0);
 	double sunset_hr = fmod(24 + localTs, 24.0);
 	int ss_hr = (int)sunset_hr;
@@ -511,11 +531,8 @@ void randomDigitalWrite(int laiOutRandom[], int anz)
 
 	showQuit(laiOutRandom, 4);
 
-	// printf("in 4.er Te Schaltung");
-
 	while (i == 1)
 	{
-
 		time_t theTime = time(NULL);
 		struct tm *aTime = localtime(&theTime);
 		// int hour=aTime->tm_hour;
@@ -784,51 +801,63 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 		printf("Message %s\n", smsg);
 
 		// Flur Unten Ein
-		if (strcmp(smsg, "OUTFLURUNTEN/Ein/FlurUnten") == 0)
+		if (strcmp(smsg, "FlurUntenLichtEin") == 0)
 		{
 			digitalWrite(OUTFLURUNTEN, EIN);	// Flur oben Ein
 		}
 
 		// Flur Unten Aus
-		if (strcmp(smsg, "OUTFLURUNTEN/Aus/FlurUnten") == 0)
+		if (strcmp(smsg, "FlurUntenLichtAus") == 0)
 		{
 			digitalWrite(OUTFLURUNTEN, AUS);	// Flur oben Aus
 		}
 
 		// Wohnzimmer Ein
-		if (strcmp(smsg, "OUTWOHNZIMMER/Ein/Wohnzimmer") == 0)
+		if (strcmp(smsg, "WohnzimmerLichEin") == 0)
 		{
 			digitalWrite(OUTWOHNZIMMER, EIN);	// Wohnzimmer Ein
 		}
 
 		// Wohnzimmer Aus
-		if (strcmp(smsg, "OUTWOHNZIMMER/Aus/Wohnzimmer") == 0)
+		if (strcmp(smsg, "WohnzimmerLichAus") == 0)
 		{
 			digitalWrite(OUTWOHNZIMMER, AUS);	// Wohnzimmer Aus
 		}
 
 		// Flur Oben Ein
-		if (strcmp(smsg, "OUTFLUROBEN/Ein/FlurOben") == 0)
+		if (strcmp(smsg, "FlurObenLichtAus") == 0)
 		{
 			digitalWrite(OUTFLUROBEN, EIN);	// Flur oben Ein
 		}
 
 		// Flur Oben Aus
-		if (strcmp(smsg, "OUTFLUROBEN/Aus/FlurOben") == 0)
+		if (strcmp(smsg, "FlurObenLichtAus") == 0)
 		{
 			digitalWrite(OUTFLUROBEN, AUS);	// Flur oben Aus
 		}
 
 		// Küche Ein
-		if (strcmp(smsg, "OUTKUECHE/Ein/Kueche") == 0)
+		if (strcmp(smsg, "KuecheLichtEin") == 0)
 		{
 			digitalWrite(OUTKUECHE, EIN);	// Küche Ein
 		}
 
 		// Küche Aus
-		if (strcmp(smsg, "OUTKUECHE/Aus/Kueche") == 0)
+		if (strcmp(smsg, "KuecheLichtAus") == 0)
 		{
 			digitalWrite(OUTKUECHE, AUS);	// Küche Aus
+		}
+
+		// Lichtautomatik Ein
+		if (strcmp(smsg, "LichtautomatikEin") == 0)
+		{
+			digitalWrite(OUTAUTOMATIK, EIN);	// Automatik Ein
+		}
+
+		// Lichtautomatik Aus
+		if (strcmp(smsg, "LichtautomatikAus") == 0)
+		{
+			digitalWrite(OUTAUTOMATIK, AUS);	// Automatik Aus
 		}
 
 		// printf("%.*s\n", message->payloadlen, (char*) message->payload);
