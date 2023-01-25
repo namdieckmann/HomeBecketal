@@ -1,10 +1,3 @@
-// This example uses an Arduino Uno together with
-// an Ethernet Shield to connect to shiftr.io.
-//
-// You can check on your device after a successful
-// connection here: https://www.shiftr.io/try.
-//
-// by Joël Gähwiler
 // https://github.com/256dpi/arduino-mqtt
 
 #include <Ethernet.h>
@@ -78,11 +71,11 @@ int laiZl1[4] = { 0,0,0,0 };	            //Timer 2.te Schaltung
 int laiZl2[4] = { 0,0,0,0 };	            //Timer 3.te Schaltung Alles aus
 int laiZl3[4] = { 0,0,0,0 };	            //Timer 4.te Schaltung Random
 int laiZl10[4] = { 0,0,0,0 };  	          // Wert Timer Zeit Flurlicht
-int laiTimer[4] = { 120000,0,100000,0 };	    // Diese Ausgänge gehen mit diesen Zeiten auf den Timer
+int laiTimer[4] = { 500,0,500,0 };	      // Zeit Timer erste Schaltung
 int laiZlOnNextOn[4] = { 0,0,0,0 };	      // Zähler für 2.te Schaltung On On
-int laiTimerOnNextOn[4] = { 50000,0,40000,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
+int laiTimerOnNextOn[4] = { 500,0,500,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
 int laiZlOffNextOn[4] = { 0,0,0,0 };	    // Zähler für 2.te Schaltung Off On
-int laiTimerOffNextOn[4] = { 50000,40000,0,20000 };
+int laiTimerOffNextOn[4] = { 500,500,0,500 };
 int laiStateWifi[4] = { 0,0,0,0 }; 	      // Speichern Status Wifi Ausgang
 
 // Mqtt String trimmen
@@ -255,7 +248,7 @@ void loop() {
 	//sprintf(buf,"Eingang gelesen %d %d \n", liInState, ii);      
 	//Serial.println(buf);
 
-	// Wenn ein Taster gedrückt ist oder von Mqtt geschaltet wurde
+	// Wenn ein Taster gedrückt wurde
 	if (laiIn[ii] == Ein)
 	{
 		// Normale Schaltung
@@ -297,7 +290,6 @@ void loop() {
 					laiStateWifi[0];
 					client.publish("100", "WZM-STL-AUS");
 				}
-
 				// Timer anstoßen für Zeit Treppenhaus
 				if (laiTimer[ii] > 0)
 				{
@@ -426,16 +418,53 @@ void loop() {
 	}
 
 	// Timer wurden angestoßen
-	// Nach Ablauf wird Abgeschaltet
-	countTimerUp(laiZl10, laiTimer, laiOut); // Normale Schaltung
-	countTimerUp(laiZlOnNextOn, laiTimerOnNextOn, laiOutOnNextOn); // 2te Schaltung
-	countTimerUp(laiZlOffNextOn, laiTimerOffNextOn, laiOutOffNextOn); //2te Schaltung						
+	// 1.te Schaltung Nach Ablauf wird Abgeschaltet
+	if (laiTimer[ii] > 0 && laiZl10[ii] > 0)
+	{
+		// Hochzaehlen
+		laiZl10[ii] ++;
 
-	  //  if(laiZl10[0] > 0)
-	  //   {
-	  //sprintf(buf,"Zaehler %d \n",ii);
-	  //Serial.println(buf);
-	  //   }
+		// sprintf(buf,"Zaehler %d \n",laiZl10[ii]);
+		// Serial.println(buf);
+
+		if (laiZl10[ii] == laiTimer[ii])
+		{
+			digitalWrite(laiOut[ii], Off);
+			// Zähler zurücksetzen
+			laiZl10[ii] = 0;
+		}
+
+	}
+	// 2.te Schaltung Nach Ablauf wird Abgeschaltet
+	if (laiTimerOnNextOn[ii] > 0 && laiZlOnNextOn[ii] > 0)
+	{
+		laiZlOnNextOn[ii] ++;
+
+		if (laiZlOnNextOn[ii] == laiTimerOnNextOn[ii])
+		{
+			digitalWrite(laiOut[ii], Off);
+			// Zähler zurücksetzen
+			laiZlOnNextOn[ii] = 0;
+		}
+	}
+	// 2.te Schaltung Nach Ablauf wird Abgeschaltet
+	if (laiTimerOffNextOn[ii] > 0 && laiZlOffNextOn[ii] > 0)
+	{
+		laiZlOffNextOn[ii] ++;
+
+		if (laiZlOffNextOn[ii] == laiTimerOffNextOn[ii])
+		{
+			digitalWrite(laiOut[ii], Off);
+			// Zähler zurücksetzen
+			laiZlOffNextOn[ii] = 0;
+		}
+	}
+
+	// if(laiZl10[0] > 0)
+	// {
+	//   sprintf(buf,"Zaehler %d \n",laiZl10[0]);
+	//   Serial.println(buf);
+	// }
 
 	delay(100);
 
@@ -444,40 +473,3 @@ void loop() {
 	if (ii > 3) ii = 0;
 }
 
-// Die Zähler für die Zeitsteuerung bearbeiten
-// int aaiZl[] Zeitvorgabe
-// int aaiTimer[] Laufender Timer
-// int laiOut[] Ausgang
-void countTimerUp(int aaiZl[], int aaiTimer[], int laiOut[])
-{
-	int i = 0;
-
-	for (i = 0; i < 4; i++)
-	{
-		if (aaiZl[i] > 0)
-		{
-
-			aaiZl[i]++;
-
-			// Vorwarnung ausschalten
-			if (aaiZl[i] == (aaiTimer[i] - 11000))
-			{
-				digitalWrite(laiOut[i], Off);
-			}
-			if (aaiZl[i] == (aaiTimer[i] - 10000))
-			{
-				digitalWrite(laiOut[i], On);
-			}
-
-			if (aaiZl[i] >= aaiTimer[i])
-			{
-				digitalWrite(laiOut[i], Off);
-				aaiZl[i] = 0;
-			}
-			// printf("Zähler 0 %d \n",aaiZl[i]);		
-			// printf("Ausgang 0 %d \n",laiOut[i]);					
-			// sprintf(buf,"Zaehler %d \n",aaiZl[i]);
-			// Serial.println(buf);
-		}
-	}
-}
