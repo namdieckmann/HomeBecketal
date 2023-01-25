@@ -71,11 +71,11 @@ int laiZl1[4] = { 0,0,0,0 };	            //Timer 2.te Schaltung
 int laiZl2[4] = { 0,0,0,0 };	            //Timer 3.te Schaltung Alles aus
 int laiZl3[4] = { 0,0,0,0 };	            //Timer 4.te Schaltung Random
 int laiZl10[4] = { 0,0,0,0 };  	          // Wert Timer Zeit Flurlicht
-int laiTimer[4] = { 500,0,500,0 };	      // Zeit Timer erste Schaltung
+int laiTimer[4] = { 600,0,600,0 };	      // Zeit Timer erste Schaltung
 int laiZlOnNextOn[4] = { 0,0,0,0 };	      // Zähler für 2.te Schaltung On On
-int laiTimerOnNextOn[4] = { 500,0,500,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
+int laiTimerOnNextOn[4] = { 600,0,600,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
 int laiZlOffNextOn[4] = { 0,0,0,0 };	    // Zähler für 2.te Schaltung Off On
-int laiTimerOffNextOn[4] = { 500,500,0,500 };
+int laiTimerOffNextOn[4] = { 600,600,0,600 };
 int laiStateWifi[4] = { 0,0,0,0 }; 	      // Speichern Status Wifi Ausgang
 
 // Mqtt String trimmen
