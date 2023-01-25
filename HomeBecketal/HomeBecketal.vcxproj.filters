@@ -18,5 +18,8 @@
     <ClCompile Include="HomeBecketal.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="HomeBecketal-Arduino-Mqtt.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
