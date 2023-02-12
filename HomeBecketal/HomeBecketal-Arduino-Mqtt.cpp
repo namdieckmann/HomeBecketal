@@ -31,9 +31,10 @@ const char mqttPassword[] = "Ash1agohd7dif7IfaeF8xahdae3phaeQuieXuiXiw2ieVei7ize
 #define GetEin 0
 #define GetAus 1
 
-// // Eingänge ab 7.1.23
+// // Eingänge ab 12.2.23
 #define INFLURUNTEN 0
-#define INWOHNZIMMER 1
+						//
+#define INWOHNZIMMER 1	// Achtung für Wohnzimmer habe ich die Klemme 4 auf der Lemmenleiste genommen. Die zweite war fehlerhaft
 #define INFLUROBEN 2
 #define INKUECHE 3
 //  #define INAUTOMATIK 
