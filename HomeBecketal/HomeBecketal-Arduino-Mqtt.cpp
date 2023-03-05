@@ -31,10 +31,9 @@ const char mqttPassword[] = "Ash1agohd7dif7IfaeF8xahdae3phaeQuieXuiXiw2ieVei7ize
 #define GetEin 0
 #define GetAus 1
 
-// // Eingänge ab 12.2.23
+// // Eingänge ab 7.1.23
 #define INFLURUNTEN 0
-						//
-#define INWOHNZIMMER 1	// Achtung für Wohnzimmer habe ich die Klemme 4 auf der Lemmenleiste genommen. Die zweite war fehlerhaft
+#define INWOHNZIMMER 1    // Für Wohnzimmer habe ich die Klemme 4 auf der Klemmenleiste genommen. Die zweite war defekt. Eingang aud dem Arduino ist aber 1
 #define INFLUROBEN 2
 #define INKUECHE 3
 //  #define INAUTOMATIK 
@@ -72,12 +71,12 @@ int laiZl1[4] = { 0,0,0,0 };	            //Timer 2.te Schaltung
 int laiZl2[4] = { 0,0,0,0 };	            //Timer 3.te Schaltung Alles aus
 int laiZl3[4] = { 0,0,0,0 };	            //Timer 4.te Schaltung Random
 int laiZl10[4] = { 0,0,0,0 };  	          // Wert Timer Zeit Flurlicht
-int laiTimer[4] = { 600,0,600,0 };	      // Zeit Timer erste Schaltung
+int laiTimer[4] = { 1200,0,1200,0 };	      // Zeit Timer erste Schaltung
 int laiZlOnNextOn[4] = { 0,0,0,0 };	      // Zähler für 2.te Schaltung On On
-int laiTimerOnNextOn[4] = { 600,0,600,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
+int laiTimerOnNextOn[4] = { 1200,0,1200,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
 int laiZlOffNextOn[4] = { 0,0,0,0 };	    // Zähler für 2.te Schaltung Off On
-int laiTimerOffNextOn[4] = { 600,600,0,600 };
-int laiStateWifi[4] = { 0,0,0,0 }; 	      // Speichern Status Wifi Ausgang
+int laiTimerOffNextOn[4] = { 1200,1200,0,1200 };
+int laiStateWifi[4] = { 0,0,0,0 }; 	      // Speichern Status Wifi Ausgang 0 = Stehlampe WZM
 
 // Mqtt String trimmen
 char *trim(char *s) {
@@ -355,7 +354,7 @@ void loop() {
 					// printf("Hauptschleife Ausgang setzen Ein %d \n",laiOutOnNextOn[ii]);
 					// laiStateWifi[1] = WifiSwitch(laiOutOnNextOn[ii], WIFIEin);
 					// Wohnzimmer Stehlampe Ein
-					laiStateWifi[1] = 1;
+					laiStateWifi[0] = 1;
 					client.publish("100", "WZM-STL-EIN");
 				}
 				laiZl1[ii]++;
@@ -467,7 +466,7 @@ void loop() {
 	//   Serial.println(buf);
 	// }
 
-	delay(100);
+	delay(50);
 
 	// Zähler
 	ii++;
