@@ -77,6 +77,7 @@ int laiTimerOnNextOn[4] = { 1200,0,1200,0 };		// Flurlicht Zeitsteuerung Wert = 
 int laiZlOffNextOn[4] = { 0,0,0,0 };	    // Zähler für 2.te Schaltung Off On
 int laiTimerOffNextOn[4] = { 1200,1200,0,1200 };
 int laiStateWifi[4] = { 0,0,0,0 }; 	      // Speichern Status Wifi Ausgang 0 = Stehlampe WZM
+int liToggle[4] = { 0,0,0,0 };
 
 // Mqtt String trimmen
 char *trim(char *s) {
@@ -227,6 +228,7 @@ void loop() {
 		reconnect = 0;
 	}
 	// ---------------------Steuerungsteil-----------------------------------
+	liToggle[ii] = 0;
 	laiIn[ii] = Aus;
 
 	switch (ii) {
@@ -266,7 +268,7 @@ void loop() {
 			// Zustand des Ausgangs lesen
 			laiOutState[ii] = digitalRead(laiOut[ii]);
 
-			// Neuer Zustand soll werden : Aus
+			// Neuer Zustand soll werden : Aus---------------------------------------------------------------------------
 			if (laiOutState[ii] == On)
 			{
 				laiOutStateNew[ii] = Off;
@@ -276,25 +278,39 @@ void loop() {
 				// Timer aus
 				laiZl10[ii] = 0;
 			}
-			// Neuer Zustand soll werden : Ein
+			// Neuer Zustand soll werden : Ein--------------------------------------------------------------------------
 			if (laiOutState[ii] == Off)
 			{
 				laiOutStateNew[ii] = On;
 				// client.publish("100", "Ausgang Ein");
-				// Ausgang Soll Ein werden, anderer Ausgang sofort auf Aus (z.B. Wifi Lampe Wohnz.)
-				if (laiOutOnAndOff[ii] < 999 && laiOutOnAndOff[ii]>100 && laiStateWifi[1] == 1)
+
+				// Mqtt Schalter Ein
+				// Ausgang Soll Ein werden, anderer Ausgang sofort auf Ein (z.B. Wifi Lampe Wohnz.)
+				if (laiOutOnAndOff[ii] < 999 && laiOutOnAndOff[ii]>100 && laiStateWifi[1] == 0 && liToggle[ii] == 0)
 				{
 					// sprintf(buf, "Ausgang setzen %d \n",laiOutOnAndOff[ii]);
 					// Serial.println(buf);
 					// Wohnzimmer Stehlampe Aus
-					laiStateWifi[0];
+					laiStateWifi[1] = 1;
+					client.publish("100", "WZM-STL-EIN");
+					liToggle[ii] = 1;
+				}
+				// MQtt Schalter Aus
+				// Ausgang Soll Ein werden, anderer Ausgang sofort auf Aus (z.B. Wifi Lampe Wohnz.)
+				if (laiOutOnAndOff[ii] < 999 && laiOutOnAndOff[ii]>100 && laiStateWifi[1] == 1 && liToggle[ii] == 0)
+				{
+					// sprintf(buf, "Ausgang setzen %d \n",laiOutOnAndOff[ii]);
+					// Serial.println(buf);
+					// Wohnzimmer Stehlampe Aus
+					laiStateWifi[1] = 0;
+					liToggle[ii] = 1;
 					client.publish("100", "WZM-STL-AUS");
 				}
+
 				// Timer anstoßen für Zeit Treppenhaus
 				if (laiTimer[ii] > 0)
 				{
-					laiZl10[ii] = 0;
-					laiZl10[ii]++;
+					laiZl10[ii] = 1;  // Zählt dann weiter siehe unten
 				}
 			}
 
@@ -316,7 +332,6 @@ void loop() {
 			laiZl1[ii]++;
 			// if(laiZl1[ii] == 5)
 			// {
-			// printf("Zaehler in Schleife %d \n",laiZl1[1]);
 			// Serial.println(buf);
 			// //printf("Zähler in Schleife %d \n",laiZl1[ii]);
 			// }
@@ -336,7 +351,7 @@ void loop() {
 					laiZlOnNextOn[ii]++;
 
 					// Timer wieder löschen für Zeit Treppenhaus
-					// In der zweiten Schaltung wird auf Dauerlicht geschaltet
+					// In der zweiten Schaltung wird der Timer hochgesetzt auf Dauerlicht
 					laiZl10[ii] = 0;
 				}
 				// Digitalausgänge < 100
@@ -348,17 +363,9 @@ void loop() {
 					// client.publish("100", "2te Schaltung Treppenhaus Ein");
 					digitalWrite(laiOutOnNextOn[ii], On);
 				}
-				// Wifi-Ausgänge
-				if (laiOutOnNextOn[ii] > 100 && laiOutOnNextOn[ii] < 999)
-				{
-					// printf("Hauptschleife Ausgang setzen Ein %d \n",laiOutOnNextOn[ii]);
-					// laiStateWifi[1] = WifiSwitch(laiOutOnNextOn[ii], WIFIEin);
-					// Wohnzimmer Stehlampe Ein
-					laiStateWifi[0] = 1;
-					client.publish("100", "WZM-STL-EIN");
-				}
 				laiZl1[ii]++;
 			}
+
 			// Ausgang Ein, nächster Ausgang Aus
 			if (laiOutOnNextOff[ii] < 999 && laiOutState[ii] == Off)
 			{
@@ -414,7 +421,7 @@ void loop() {
 	{
 		laiZl1[ii] = 0;	// 2.te Schaltung
 		laiZl2[ii] = 0;	// 3.te Schaltung alles aus
-		laiZl3[ii] = 0;	// 4.te Schaltung Random Tageszeitabhängig (Quittierung 3*blinken)
+		laiZl3[ii] = 0;	// 4.te Schaltung Random Tageszeitabhängig -> außer Betrieb
 	}
 
 	// Timer wurden angestoßen
@@ -426,6 +433,17 @@ void loop() {
 
 		// sprintf(buf,"Zaehler %d \n",laiZl10[ii]);
 		// Serial.println(buf);
+
+		// Warnung für Aus Ausschalten
+		if (laiZl10[ii] == (laiTimer[ii] - 100))
+		{
+			digitalWrite(laiOut[ii], Off);
+		}
+		// Warnung für Aus Einschalten
+		if (laiZl10[ii] == (laiTimer[ii] - 50))
+		{
+			digitalWrite(laiOut[ii], On);
+		}
 
 		if (laiZl10[ii] == laiTimer[ii])
 		{
