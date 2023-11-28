@@ -19,11 +19,12 @@ const char mqttUsername[] = "homeassistant";
 const char mqttPassword[] = "Ash1agohd7dif7IfaeF8xahdae3phaeQuieXuiXiw2ieVei7izeiqu7eguemeaNg"; //Username and password for your MQTT-Broker
 
 // homebecketal
-// Ein Aus Off ist für Ausgänge
+// Eingänge Ein Aus, On Off ist für Ausgänge ACHTUNG invertiert
 #define Ein 0
 #define Aus 1
-#define Off 1
+#define Neutral 9
 #define On 0
+#define Off 1
 
 #define WifiEin 0
 #define WifiAus 1
@@ -71,13 +72,14 @@ int laiZl1[4] = { 0,0,0,0 };	            //Timer 2.te Schaltung
 int laiZl2[4] = { 0,0,0,0 };	            //Timer 3.te Schaltung Alles aus
 int laiZl3[4] = { 0,0,0,0 };	            //Timer 4.te Schaltung Random
 int laiZl10[4] = { 0,0,0,0 };  	          // Wert Timer Zeit Flurlicht
-int laiTimer[4] = { 1200,0,1200,0 };	      // Zeit Timer erste Schaltung
-int laiZlOnNextOn[4] = { 0,0,0,0 };	      // Zähler für 2.te Schaltung On On
+int laiTimer[4] = { 1200,0,1200,0 };	          // Zeit Timer erste Schaltung
+int laiZlOnNextOn[4] = { 0,0,0,0 };	            // Zähler für 2.te Schaltung On On
 int laiTimerOnNextOn[4] = { 1200,0,1200,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
-int laiZlOffNextOn[4] = { 0,0,0,0 };	    // Zähler für 2.te Schaltung Off On
+int laiZlOffNextOn[4] = { 0,0,0,0 };	          // Zähler für 2.te Schaltung Off On
 int laiTimerOffNextOn[4] = { 1200,1200,0,1200 };
-int laiStateWifi[4] = { 0,0,0,0 }; 	      // Speichern Status Wifi Ausgang 0 = Stehlampe WZM
+int laiStateWifi[4] = { 0,0,0,0 }; 	            // Speichern Status Wifi Ausgang 0 = Stehlampe WZM
 int liToggle[4] = { 0,0,0,0 };
+int laiInFromMqtt[4] = { Neutral };     // Bei Neutral = 3 nix machen
 
 // Mqtt String trimmen
 char *trim(char *s) {
@@ -104,81 +106,77 @@ void connect() {
 }
 
 // Mqtt Nachricht erhalten
-void messageReceived(String &topic, String &payload) {
+void messageReceived(String &topic, String &payload)
+{
+	const char* mess = (const char*)payload.c_str();
+	// Create a copy of the message to trim
+	char message[strlen(mess) + 1];
+	strcpy(message, mess);
 
-	const char* myPayload = (const char*)payload.c_str();
-
-	const char* myPayload2 = trim(myPayload);
-	// Serial.println(myPayload2);
-	if (strcmp(myPayload, "reconnect") == 0)
+	// Serial.println(message);
+	if (strcmp(message, "reconnect") == 0)
 	{
 		Serial.println("\nreconnect gesetzt");
 		reconnect = 1;
 	}
+	// Array zurücksetzen
+	laiInFromMqtt[4] = { Neutral };
 	// Flur unten Ein
-	if (strcmp(myPayload2, "FLU-EIN") == 0)
+	if (strcmp(message, "FLU-EIN") == 0)
 	{
 		Serial.println("\nFLU EIN");
-		laiOutState[0] = On;
-		digitalWrite(OUTFLURUNTEN, On);
+		laiInFromMqtt[0] = On;
 	}
 	// Flur unten Aus   
-	if (strcmp(myPayload2, "FLU-AUS") == 0)
+	if (strcmp(message, "FLU-AUS") == 0)
 	{
 		Serial.println("\nFLU AUS");
-		laiOutState[0] = Off;
-		digitalWrite(OUTFLURUNTEN, Off);
+		laiInFromMqtt[0] = Off;
 	}
 	// Wohnzimmer Ein
-	if (strcmp(myPayload2, "WZM-EIN") == 0)
+	if (strcmp(message, "WZM-EIN") == 0)
 	{
 		Serial.println("\nWZM EIN");
-		laiOutState[1] = On;
-		digitalWrite(OUTWOHNZIMMER, On);
+		laiInFromMqtt[1] = On;
 	}
 	// Wohnzimmer Aus   
-	if (strcmp(myPayload2, "WZM-AUS") == 0)
+	if (strcmp(message, "WZM-AUS") == 0)
 	{
 		Serial.println("\nWZM AUS");
-		laiOutState[1] = Off;
-		digitalWrite(OUTWOHNZIMMER, Off);
+		laiInFromMqtt[1] = Off;
 	}
 	// Flur Oben Ein
-	if (strcmp(myPayload2, "FLO-EIN") == 0)
+	if (strcmp(message, "FLO-EIN") == 0)
 	{
 		Serial.println("\nFLO EIN");
-		laiOutState[2] = On;
-		digitalWrite(OUTFLUROBEN, On);
+		laiInFromMqtt[2] = On;
 	}
 	// Flur Oben Aus   
-	if (strcmp(myPayload2, "FLO-AUS") == 0)
+	if (strcmp(message, "FLO-AUS") == 0)
 	{
 		Serial.println("\nFLO AUS");
-		laiOutState[2] = Off;
-		digitalWrite(OUTFLUROBEN, Off);
+		laiInFromMqtt[2] = Off;
 	}
 	// Küche Ein
-	if (strcmp(myPayload2, "KUE-EIN") == 0)
+	if (strcmp(message, "KUE-EIN") == 0)
 	{
 		Serial.println("\nKUE EIN");
-		laiOutState[3] = On;
-		digitalWrite(OUTKUECHE, On);
+		laiInFromMqtt[3] = On;
 	}
 	// Küche Aus   
-	if (strcmp(myPayload2, "KUE-AUS") == 0)
+	if (strcmp(message, "KUE-AUS") == 0)
 	{
 		Serial.println("\nKUE AUS");
-		laiOutState[3] = Off;
-		digitalWrite(OUTKUECHE, Off);
+		laiInFromMqtt[3] = Off;
 	}
-	// Automatik Ein
-	if (strcmp(myPayload2, "AUT-EIN") == 0)
+	// Automatik Ein wird direkt geschaltet
+	if (strcmp(message, "AUT-EIN") == 0)
 	{
 		Serial.println("\nAUT EIN");
 		digitalWrite(OUTAUTOMATIK, On);
 	}
 	// Automatik Aus   
-	if (strcmp(myPayload2, "AUT-AUS") == 0)
+	if (strcmp(message, "AUT-AUS") == 0)
 	{
 		Serial.println("\nAUT AUS");
 		digitalWrite(OUTAUTOMATIK, Off);
@@ -251,7 +249,7 @@ void loop() {
 	//Serial.println(buf);
 
 	// Wenn ein Taster gedrückt wurde
-	if (laiIn[ii] == Ein)
+	if (laiIn[ii] == Ein || laiInFromMqtt[ii] == Ein || laiInFromMqtt[ii] == Aus)
 	{
 		// Normale Schaltung
 		if (laiZl1[ii] == 0)
@@ -272,6 +270,14 @@ void loop() {
 			if (laiOutState[ii] == On)
 			{
 				laiOutStateNew[ii] = Off;
+
+				// Oder Mqtt von HA ausschalten
+				if (laiInFromMqtt[ii] == Aus)
+				{
+					laiOutStateNew[ii] = Off;
+					laiInFromMqtt[ii] == Neutral;
+				}
+
 				// client.publish("100", "Ausgang Aus");
 				// sprintf(buf, "Ausgang aus %d \n",laiOutOnAndOff[ii]);
 				// Serial.println(buf);
@@ -284,7 +290,13 @@ void loop() {
 				laiOutStateNew[ii] = On;
 				// client.publish("100", "Ausgang Ein");
 
-				// Mqtt Schalter Ein
+				// Oder Mqtt von HA Schalter Ein
+				if (laiInFromMqtt[ii] == Ein)
+				{
+					laiOutStateNew[ii] = On;
+					laiInFromMqtt[ii] == Neutral;
+				}
+
 				// Ausgang Soll Ein werden, anderer Ausgang sofort auf Ein (z.B. Wifi Lampe Wohnz.)
 				if (laiOutOnAndOff[ii] < 999 && laiOutOnAndOff[ii]>100 && laiStateWifi[1] == 0 && liToggle[ii] == 0)
 				{
@@ -295,7 +307,6 @@ void loop() {
 					client.publish("100", "WZM-STL-EIN");
 					liToggle[ii] = 1;
 				}
-				// MQtt Schalter Aus
 				// Ausgang Soll Ein werden, anderer Ausgang sofort auf Aus (z.B. Wifi Lampe Wohnz.)
 				if (laiOutOnAndOff[ii] < 999 && laiOutOnAndOff[ii]>100 && laiStateWifi[1] == 1 && liToggle[ii] == 0)
 				{
@@ -434,24 +445,12 @@ void loop() {
 		// sprintf(buf,"Zaehler %d \n",laiZl10[ii]);
 		// Serial.println(buf);
 
-		// Warnung für Aus Ausschalten
-		if (laiZl10[ii] == (laiTimer[ii] - 100))
-		{
-			digitalWrite(laiOut[ii], Off);
-		}
-		// Warnung für Aus Einschalten
-		if (laiZl10[ii] == (laiTimer[ii] - 50))
-		{
-			digitalWrite(laiOut[ii], On);
-		}
-
 		if (laiZl10[ii] == laiTimer[ii])
 		{
 			digitalWrite(laiOut[ii], Off);
 			// Zähler zurücksetzen
 			laiZl10[ii] = 0;
 		}
-
 	}
 	// 2.te Schaltung Nach Ablauf wird Abgeschaltet
 	if (laiTimerOnNextOn[ii] > 0 && laiZlOnNextOn[ii] > 0)
