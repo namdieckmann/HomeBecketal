@@ -3,6 +3,7 @@
 #include <Ethernet.h>
 #include <MQTT.h>
 #include <string.h>
+#include <stdio.h>
 
 byte mac[] = { 0x5A, 0xA2, 0xDA, 0x0D, 0x56, 0x7A };  // MAC-Adresse des Ethernet-Shield
 byte ip[] = { 192, 168, 178, 2 };                       // <- change to match your network
@@ -12,6 +13,7 @@ MQTTClient client;
 
 unsigned long lastMillis = 0;
 int reconnect = 0;
+int ok = 0;
 
 //MQTT-Broker config
 const char mqttClientId[] = "homebecketal"; //The MQTT Client ID
@@ -19,12 +21,11 @@ const char mqttUsername[] = "homeassistant";
 const char mqttPassword[] = "Ash1agohd7dif7IfaeF8xahdae3phaeQuieXuiXiw2ieVei7izeiqu7eguemeaNg"; //Username and password for your MQTT-Broker
 
 // homebecketal
-// Eingänge Ein Aus, On Off ist für Ausgänge ACHTUNG invertiert
+// Ein Aus Off ist für Ausgänge
 #define Ein 0
 #define Aus 1
-#define Neutral 9
-#define On 0
 #define Off 1
+#define On 0
 
 #define WifiEin 0
 #define WifiAus 1
@@ -79,7 +80,7 @@ int laiZlOffNextOn[4] = { 0,0,0,0 };	          // Zähler für 2.te Schaltung Off 
 int laiTimerOffNextOn[4] = { 1200,1200,0,1200 };
 int laiStateWifi[4] = { 0,0,0,0 }; 	            // Speichern Status Wifi Ausgang 0 = Stehlampe WZM
 int liToggle[4] = { 0,0,0,0 };
-int laiInFromMqtt[4] = { Neutral };     // Bei Neutral = 3 nix machen
+int laiInFromMqtt[4] = { INFLURUNTEN,INWOHNZIMMER,INFLUROBEN,INKUECHE };
 
 // Mqtt String trimmen
 char *trim(char *s) {
@@ -119,68 +120,67 @@ void messageReceived(String &topic, String &payload)
 		Serial.println("\nreconnect gesetzt");
 		reconnect = 1;
 	}
-	// Array zurücksetzen
-	laiInFromMqtt[4] = { Neutral };
 	// Flur unten Ein
 	if (strcmp(message, "FLU-EIN") == 0)
 	{
-		Serial.println("\nFLU EIN");
-		laiInFromMqtt[0] = On;
+		digitalWrite(OUTFLURUNTEN, On);
+		client.publish("200", "FLU-EIN");
 	}
 	// Flur unten Aus   
 	if (strcmp(message, "FLU-AUS") == 0)
 	{
-		Serial.println("\nFLU AUS");
-		laiInFromMqtt[0] = Off;
+		digitalWrite(OUTFLURUNTEN, Off);
+		client.publish("200", "FLU-AUS");
 	}
 	// Wohnzimmer Ein
 	if (strcmp(message, "WZM-EIN") == 0)
 	{
-		Serial.println("\nWZM EIN");
-		laiInFromMqtt[1] = On;
+		digitalWrite(OUTWOHNZIMMER, On);
+		client.publish("200", "WZM-EIN");
 	}
 	// Wohnzimmer Aus   
 	if (strcmp(message, "WZM-AUS") == 0)
 	{
-		Serial.println("\nWZM AUS");
-		laiInFromMqtt[1] = Off;
+		digitalWrite(OUTWOHNZIMMER, Off);
+		client.publish("200", "WZM-AUS");
 	}
 	// Flur Oben Ein
 	if (strcmp(message, "FLO-EIN") == 0)
 	{
-		Serial.println("\nFLO EIN");
-		laiInFromMqtt[2] = On;
+		digitalWrite(OUTFLUROBEN, On);
+		client.publish("200", "FLO-EIN");
 	}
 	// Flur Oben Aus   
 	if (strcmp(message, "FLO-AUS") == 0)
 	{
-		Serial.println("\nFLO AUS");
-		laiInFromMqtt[2] = Off;
+		digitalWrite(OUTFLUROBEN, Off);
+		client.publish("200", "FLO-AUS");
 	}
 	// Küche Ein
 	if (strcmp(message, "KUE-EIN") == 0)
 	{
-		Serial.println("\nKUE EIN");
-		laiInFromMqtt[3] = On;
+		digitalWrite(OUTKUECHE, On);
+		client.publish("200", "KUE-EIN");
 	}
 	// Küche Aus   
 	if (strcmp(message, "KUE-AUS") == 0)
 	{
-		Serial.println("\nKUE AUS");
-		laiInFromMqtt[3] = Off;
+		digitalWrite(OUTKUECHE, Off);
+		client.publish("200", "KUE-AUS");
 	}
-	// Automatik Ein wird direkt geschaltet
+	// Automatik Ein
 	if (strcmp(message, "AUT-EIN") == 0)
 	{
-		Serial.println("\nAUT EIN");
 		digitalWrite(OUTAUTOMATIK, On);
+		client.publish("200", "AUT-EIN");
 	}
 	// Automatik Aus   
 	if (strcmp(message, "AUT-AUS") == 0)
 	{
-		Serial.println("\nAUT AUS");
 		digitalWrite(OUTAUTOMATIK, Off);
+		client.publish("200", "AUT-AUS");
 	}
+	Serial.println("message " + String(message));
 }
 
 void setup() {
@@ -249,7 +249,7 @@ void loop() {
 	//Serial.println(buf);
 
 	// Wenn ein Taster gedrückt wurde
-	if (laiIn[ii] == Ein || laiInFromMqtt[ii] == Ein || laiInFromMqtt[ii] == Aus)
+	if (laiIn[ii] == Ein)
 	{
 		// Normale Schaltung
 		if (laiZl1[ii] == 0)
@@ -270,14 +270,6 @@ void loop() {
 			if (laiOutState[ii] == On)
 			{
 				laiOutStateNew[ii] = Off;
-
-				// Oder Mqtt von HA ausschalten
-				if (laiInFromMqtt[ii] == Aus)
-				{
-					laiOutStateNew[ii] = Off;
-					laiInFromMqtt[ii] == Neutral;
-				}
-
 				// client.publish("100", "Ausgang Aus");
 				// sprintf(buf, "Ausgang aus %d \n",laiOutOnAndOff[ii]);
 				// Serial.println(buf);
@@ -289,14 +281,7 @@ void loop() {
 			{
 				laiOutStateNew[ii] = On;
 				// client.publish("100", "Ausgang Ein");
-
-				// Oder Mqtt von HA Schalter Ein
-				if (laiInFromMqtt[ii] == Ein)
-				{
-					laiOutStateNew[ii] = On;
-					laiInFromMqtt[ii] == Neutral;
-				}
-
+				// Mqtt Schalter Ein
 				// Ausgang Soll Ein werden, anderer Ausgang sofort auf Ein (z.B. Wifi Lampe Wohnz.)
 				if (laiOutOnAndOff[ii] < 999 && laiOutOnAndOff[ii]>100 && laiStateWifi[1] == 0 && liToggle[ii] == 0)
 				{
@@ -307,6 +292,7 @@ void loop() {
 					client.publish("100", "WZM-STL-EIN");
 					liToggle[ii] = 1;
 				}
+				// MQtt Schalter Aus
 				// Ausgang Soll Ein werden, anderer Ausgang sofort auf Aus (z.B. Wifi Lampe Wohnz.)
 				if (laiOutOnAndOff[ii] < 999 && laiOutOnAndOff[ii]>100 && laiStateWifi[1] == 1 && liToggle[ii] == 0)
 				{
@@ -330,10 +316,16 @@ void loop() {
 			{
 				// Ausgang setzen
 				digitalWrite(laiOut[ii], laiOutStateNew[ii]);
+				// An Homeassistant senden
+				ok = SetRmMqtt(laiOutStateNew, ii);
 				// sprintf(buf,"Ausgang %d \n",laiOut[ii]);
 				// Serial.println(buf);
 				// sprintf(buf,"Zustand gesetzt %d \n",laiOutStateNew[ii]);
 				// Serial.println(buf);
+				// sprintf(buf,"Zeiger %d \n",ii);
+				// Serial.println(buf);
+				// Zustand abgleichen
+				laiOutState[ii] = laiOutStateNew[ii];
 			}
 		}
 
@@ -353,7 +345,7 @@ void loop() {
 		{
 			//Serial.println("2te Schaltung erreicht");
 			// Ausgang Ein, nächster Ausgang Ein
-			if (laiOutOnNextOn[ii] < 999 && laiOutState[ii] == Off)
+			if (laiOutOnNextOn[ii] < 999 && laiOutState[ii] == Off && laiIn[ii] == Ein)
 			{
 				// Timer 2.te Schaltung anstoßen für Zeit Treppenhaus
 				if (laiTimerOnNextOn[ii] > 0)
@@ -378,7 +370,7 @@ void loop() {
 			}
 
 			// Ausgang Ein, nächster Ausgang Aus
-			if (laiOutOnNextOff[ii] < 999 && laiOutState[ii] == Off)
+			if (laiOutOnNextOff[ii] < 999 && laiOutState[ii] == Off && laiIn[ii] == Ein)
 			{
 				// printf("Ausgang setzen Ein Aus %d \n",laiOutOnNextOff[ii]);																						
 				digitalWrite(laiOutOnNextOff[ii], Off);
@@ -414,7 +406,7 @@ void loop() {
 		if (laiZl2[ii] > 0)
 		{
 			laiZl2[ii]++;
-			if (laiZl2[ii] == 12)
+			if (laiZl2[ii] == 12 && laiIn[ii] == Ein)
 			{
 				// client.publish("100", "3te Schaltung erreicht Alles Aus");
 				for (j = 0; j < 4; j++)
@@ -445,12 +437,24 @@ void loop() {
 		// sprintf(buf,"Zaehler %d \n",laiZl10[ii]);
 		// Serial.println(buf);
 
+		// Warnung für Aus Ausschalten
+		if (laiZl10[ii] == (laiTimer[ii] - 100))
+		{
+			digitalWrite(laiOut[ii], Off);
+		}
+		// Warnung für Aus Einschalten
+		if (laiZl10[ii] == (laiTimer[ii] - 50))
+		{
+			digitalWrite(laiOut[ii], On);
+		}
+
 		if (laiZl10[ii] == laiTimer[ii])
 		{
 			digitalWrite(laiOut[ii], Off);
 			// Zähler zurücksetzen
 			laiZl10[ii] = 0;
 		}
+
 	}
 	// 2.te Schaltung Nach Ablauf wird Abgeschaltet
 	if (laiTimerOnNextOn[ii] > 0 && laiZlOnNextOn[ii] > 0)
@@ -488,5 +492,61 @@ void loop() {
 	// Zähler
 	ii++;
 	if (ii > 3) ii = 0;
+}
+
+
+// Funktion für Rückmeldung an HomeAssistant
+int SetRmMqtt(int *getStatus, int zeiger)
+{
+	int ok = 0;
+
+
+
+	if (getStatus[zeiger] == On) {
+
+		// sprintf(buf,"funktion empfangen %d \n",getStatus[zeiger]);
+		// Serial.println(buf);
+		// sprintf(buf,"Zeiger empfangen %d \n",zeiger);
+		// Serial.println(buf);
+
+		switch (zeiger)
+		{
+		case INFLURUNTEN:
+			client.publish("200", "FLU-EIN");
+			break;
+		case INWOHNZIMMER:
+			client.publish("200", "WZM-EIN");
+			break;
+		case INFLUROBEN:
+			client.publish("200", "FLO-EIN");
+			// sprintf(buf,"FLO Ein gesendet %d \n",getStatus[zeiger]);
+			// Serial.println(buf);
+			break;
+		case OUTKUECHE:
+			client.publish("200", "KUE-EIN");
+			break;
+		}
+	}
+	if (getStatus[zeiger] == Off) {
+		switch (zeiger)
+		{
+		case INFLURUNTEN:
+			client.publish("200", "FLU-AUS");
+			break;
+		case INWOHNZIMMER:
+			client.publish("200", "WZM-AUS");
+			break;
+		case INFLUROBEN:
+			client.publish("200", "FLO-AUS");
+			// sprintf(buf,"FLO Aus gesendet %d \n",getStatus[zeiger]);
+			// Serial.println(buf);
+			break;
+		case INKUECHE:
+			client.publish("200", "KUE-AUS");
+			break;
+		}
+	}
+
+	return ok;
 }
 
