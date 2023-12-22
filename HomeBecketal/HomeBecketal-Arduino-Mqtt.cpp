@@ -73,11 +73,11 @@ int laiZl1[4] = { 0,0,0,0 };	            //Timer 2.te Schaltung
 int laiZl2[4] = { 0,0,0,0 };	            //Timer 3.te Schaltung Alles aus
 int laiZl3[4] = { 0,0,0,0 };	            //Timer 4.te Schaltung Random
 int laiZl10[4] = { 0,0,0,0 };  	          // Wert Timer Zeit Flurlicht
-int laiTimer[4] = { 1200,0,1200,0 };	          // Zeit Timer erste Schaltung
+int laiTimer[4] = { 1500,0,1500,0 };	          // Zeit Timer erste Schaltung
 int laiZlOnNextOn[4] = { 0,0,0,0 };	            // Zähler für 2.te Schaltung On On
-int laiTimerOnNextOn[4] = { 1200,0,1200,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
+int laiTimerOnNextOn[4] = { 1500,0,1500,0 };		// Flurlicht Zeitsteuerung Wert = Sekunde *10
 int laiZlOffNextOn[4] = { 0,0,0,0 };	          // Zähler für 2.te Schaltung Off On
-int laiTimerOffNextOn[4] = { 1200,1200,0,1200 };
+int laiTimerOffNextOn[4] = { 1500,1500,0,1500 };
 int laiStateWifi[4] = { 0,0,0,0 }; 	            // Speichern Status Wifi Ausgang 0 = Stehlampe WZM
 int liToggle[4] = { 0,0,0,0 };
 int laiInFromMqtt[4] = { INFLURUNTEN,INWOHNZIMMER,INFLUROBEN,INKUECHE };
@@ -324,11 +324,13 @@ void loop() {
 				// Serial.println(buf);
 				// sprintf(buf,"Zeiger %d \n",ii);
 				// Serial.println(buf);
-				// Zustand abgleichen
-				laiOutState[ii] = laiOutStateNew[ii];
+
+				// Todo Nö Zustand abgleichen 
+				// laiOutState[ii] = laiOutStateNew[ii];
 			}
 		}
 
+		// --------------------------------------------------------------------------------------------------------
 		// Zähler 2te Schaltung
 		if (laiZl1[ii] > 0)
 		{
@@ -402,6 +404,7 @@ void loop() {
 				laiZl10[ii] = 0;
 			}
 		}
+		// --------------------------------------------------------------------------------------
 		// Zähler 3te Schaltung > Alles aus
 		if (laiZl2[ii] > 0)
 		{
@@ -438,12 +441,12 @@ void loop() {
 		// Serial.println(buf);
 
 		// Warnung für Aus Ausschalten
-		if (laiZl10[ii] == (laiTimer[ii] - 100))
+		if (laiZl10[ii] == (laiTimer[ii] - 400))
 		{
 			digitalWrite(laiOut[ii], Off);
 		}
 		// Warnung für Aus Einschalten
-		if (laiZl10[ii] == (laiTimer[ii] - 50))
+		if (laiZl10[ii] == (laiTimer[ii] - 10))
 		{
 			digitalWrite(laiOut[ii], On);
 		}
