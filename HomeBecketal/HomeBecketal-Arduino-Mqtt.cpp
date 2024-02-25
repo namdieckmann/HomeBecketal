@@ -12,7 +12,6 @@ EthernetClient net;
 MQTTClient client;
 
 unsigned long lastMillis = 0;
-int reconnect = 0;
 int ok = 0;
 
 //MQTT-Broker config
@@ -114,12 +113,6 @@ void messageReceived(String &topic, String &payload)
 	char message[strlen(mess) + 1];
 	strcpy(message, mess);
 
-	// Serial.println(message);
-	if (strcmp(message, "reconnect") == 0)
-	{
-		Serial.println("\nreconnect gesetzt");
-		reconnect = 1;
-	}
 	// Flur unten Ein
 	if (strcmp(message, "FLU-EIN") == 0)
 	{
@@ -192,6 +185,7 @@ void setup() {
 	client.begin("192.168.178.44", net);  // HomeAssistant
 	client.onMessage(messageReceived);
 	connect();
+
 	//  Definition der Ausgänge
 	pinMode(OUTFLURUNTEN, OUTPUT);		        //5   4 = GPIO 23 Flur unten
 	pinMode(OUTWOHNZIMMER, OUTPUT);  	        //6 	7 =	GPIO 4  Wohnzimmer
@@ -213,18 +207,14 @@ void setup() {
 }
 
 void loop() {
-	client.loop();
-
-	if (!client.connected() && reconnect == 0) {
+	// Verbindung neu herstellen
+	if (!client.connected()) {
 		connect();
 	}
-	if (reconnect == 1)
-	{
-		Serial.println("\nChoosenreconnected!");
-		client.disconnect();
-		delay(10);
-		reconnect = 0;
+	else {
+		client.loop();
 	}
+
 	// ---------------------Steuerungsteil-----------------------------------
 	liToggle[ii] = 0;
 	laiIn[ii] = Aus;
